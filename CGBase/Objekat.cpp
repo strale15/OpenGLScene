@@ -1,0 +1,6 @@
+class Objekat {
+public:
+	Objekat() {
+
+	}
+};
