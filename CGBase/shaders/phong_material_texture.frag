@@ -49,7 +49,9 @@ in vec3 vWorldSpaceNormal;
 out vec4 FragColor;
 
 in vec4 fragPosLight;
+in vec4 fragPosLight2;
 uniform sampler2D shadowMap;
+uniform sampler2D shadowMap2;
 
 void main() {
 	// Shadow value
@@ -61,6 +63,8 @@ void main() {
 		// Get from [-1, 1] range to [0, 1] range just like the shadow map
 		lightCoords = (lightCoords + 1.0f) / 2.0f;
 		float currentDepth = lightCoords.z;
+
+		float bias = max(0.025f * (1.0f - dot(vWorldSpaceNormal, uDirLight.Direction)), 0.0005f);
 
 		// Smoothens out the shadows
 		int sampleRadius = 2;
@@ -133,6 +137,32 @@ void main() {
 	vec3 SptLightsColor;
 	first = true;
 	for(int i = 0; i < NR_SPOT_LIGHTS; i++) {
+		// Shadow value
+		float shadow = 0.0f;
+		// Sets lightCoords to cull space
+		vec3 lightCoords = fragPosLight2.xyz / fragPosLight2.w;
+		if(lightCoords.z <= 1.0f)
+		{
+			// Get from [-1, 1] range to [0, 1] range just like the shadow map
+			lightCoords = (lightCoords + 1.0f) / 2.0f;
+			float currentDepth = lightCoords.z;
+
+			// Smoothens out the shadows
+			int sampleRadius = 2;
+			vec2 pixelSize = 1.0 / textureSize(shadowMap2, 0);
+			for(int y = -sampleRadius; y <= sampleRadius; y++)
+			{
+				for(int x = -sampleRadius; x <= sampleRadius; x++)
+				{
+					float closestDepth = texture(shadowMap2, lightCoords.xy + vec2(x, y) * pixelSize).r;
+					if (currentDepth > closestDepth + 0.00015)
+						shadow += 1.0f;     
+				}    
+			}
+			// Get average shadow
+			shadow /= pow((sampleRadius * 2 + 1), 2);
+		}
+
 		vec3 SpotlightVector = normalize(uSpotlights[i].Position - vWorldSpaceFragment);
 
 		float SpotDiffuse = max(dot(vWorldSpaceNormal, SpotlightVector), 0.0f);
@@ -140,8 +170,8 @@ void main() {
 		float SpotSpecular = pow(max(dot(ViewDirection, SpotReflectDirection), 0.0f), uMaterial.Shininess);
 
 		vec3 SpotAmbientColor = uSpotlights[i].Ka * vec3(texture(uMaterial.Kd, UV));
-		vec3 SpotDiffuseColor = SpotDiffuse * uSpotlights[i].Kd * vec3(texture(uMaterial.Kd, UV));
-		vec3 SpotSpecularColor = SpotSpecular * uSpotlights[i].Ks * vec3(texture(uMaterial.Ks, UV));
+		vec3 SpotDiffuseColor = SpotDiffuse * uSpotlights[i].Kd * vec3(texture(uMaterial.Kd, UV))* (1.0f - shadow);
+		vec3 SpotSpecularColor = SpotSpecular * uSpotlights[i].Ks * vec3(texture(uMaterial.Ks, UV))* (1.0f - shadow);
 
 		float SpotlightDistance = length(uSpotlights[i].Position - vWorldSpaceFragment);
 		float SpotAttenuation = 1.0f / (uSpotlights[i].Kc + uSpotlights[i].Kl * SpotlightDistance + uSpotlights[i].Kq * (SpotlightDistance * SpotlightDistance));
