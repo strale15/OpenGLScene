@@ -50,8 +50,10 @@ out vec4 FragColor;
 
 in vec4 fragPosLight;
 in vec4 fragPosLight2;
+in vec4 fragPosLight3;
 uniform sampler2D shadowMap;
 uniform sampler2D shadowMap2;
+uniform sampler2D shadowMap3;
 
 void main() {
 	// Shadow value
@@ -95,20 +97,6 @@ void main() {
 	vec3 DirSpecularColor = uDirLight.Ks * DirSpecular * vec3(texture(uMaterial.Ks, UV)) * (1.0 - shadow);
 	vec3 DirColor = DirAmbientColor + DirDiffuseColor + DirSpecularColor;
 
-	// NOTE(Jovan): Point light
-	/*vec3 PtLightVector = normalize(uPointLight.Position - vWorldSpaceFragment);
-	float PtDiffuse = max(dot(vWorldSpaceNormal, PtLightVector), 0.0f);
-	vec3 PtReflectDirection = reflect(-PtLightVector, vWorldSpaceNormal);
-	float PtSpecular = pow(max(dot(ViewDirection, PtReflectDirection), 0.0f), uMaterial.Shininess);
-
-	vec3 PtAmbientColor = uPointLight.Ka * vec3(texture(uMaterial.Kd, UV));
-	vec3 PtDiffuseColor = PtDiffuse * uPointLight.Kd * vec3(texture(uMaterial.Kd, UV));
-	vec3 PtSpecularColor = PtSpecular * uPointLight.Ks * vec3(texture(uMaterial.Ks, UV));
-
-	float PtLightDistance = length(uPointLight.Position - vWorldSpaceFragment);
-	float PtAttenuation = 1.0f / (uPointLight.Kc + uPointLight.Kl * PtLightDistance + uPointLight.Kq * (PtLightDistance * PtLightDistance));
-	vec3 PtColor = PtAttenuation * (PtAmbientColor + PtDiffuseColor + PtSpecularColor);*/
-
 	vec3 PtLightsColor;
 	bool first = true;
 	for(int i = 0; i < NR_POINT_LIGHTS; i++) {
@@ -137,10 +125,17 @@ void main() {
 	vec3 SptLightsColor;
 	first = true;
 	for(int i = 0; i < NR_SPOT_LIGHTS; i++) {
+		vec4 fragPosLight_i;
 		// Shadow value
 		float shadow = 0.0f;
 		// Sets lightCoords to cull space
-		vec3 lightCoords = fragPosLight2.xyz / fragPosLight2.w;
+		if(i == 0) {
+			fragPosLight_i = fragPosLight2;
+		}
+		else {
+			fragPosLight_i = fragPosLight3;
+		}
+		vec3 lightCoords = fragPosLight_i.xyz / fragPosLight_i.w;
 		if(lightCoords.z <= 1.0f)
 		{
 			// Get from [-1, 1] range to [0, 1] range just like the shadow map
@@ -149,12 +144,17 @@ void main() {
 
 			// Smoothens out the shadows
 			int sampleRadius = 2;
-			vec2 pixelSize = 1.0 / textureSize(shadowMap2, 0);
+			vec2 pixelSize;
+			if(i == 0) pixelSize = 1.0 / textureSize(shadowMap2, 0);
+			else pixelSize = 1.0 / textureSize(shadowMap3, 0);
+
 			for(int y = -sampleRadius; y <= sampleRadius; y++)
 			{
 				for(int x = -sampleRadius; x <= sampleRadius; x++)
 				{
-					float closestDepth = texture(shadowMap2, lightCoords.xy + vec2(x, y) * pixelSize).r;
+					float closestDepth;
+					if(i == 0) closestDepth = texture(shadowMap2, lightCoords.xy + vec2(x, y) * pixelSize).r;
+					else closestDepth = texture(shadowMap3, lightCoords.xy + vec2(x, y) * pixelSize).r;
 					if (currentDepth > closestDepth + 0.00015)
 						shadow += 1.0f;     
 				}    

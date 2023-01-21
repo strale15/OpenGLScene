@@ -540,8 +540,8 @@ int main() {
 	Basic.SetUniform1f("uSpotlights[0].Kc", 1.0f);
 	Basic.SetUniform1f("uSpotlights[0].Kl", 0.092f);
 	Basic.SetUniform1f("uSpotlights[0].Kq", 0.032f);
-	Basic.SetUniform1f("uSpotlights[0].InnerCutOff", glm::cos(glm::radians(20.0f)));
-	Basic.SetUniform1f("uSpotlights[0].OuterCutOff", glm::cos(glm::radians(25.0f)));
+	Basic.SetUniform1f("uSpotlights[0].InnerCutOff", glm::cos(glm::radians(15.0f)));
+	Basic.SetUniform1f("uSpotlights[0].OuterCutOff", glm::cos(glm::radians(20.0f)));
 
 	Basic.SetUniform3f("uSpotlights[1].Position", glm::vec3(-10.0, 10.0, 10.0));
 	Basic.SetUniform3f("uSpotlights[1].Direction", glm::vec3(0.0f, -1.0f, -1.0f));
@@ -551,8 +551,8 @@ int main() {
 	Basic.SetUniform1f("uSpotlights[1].Kc", 1.0f);
 	Basic.SetUniform1f("uSpotlights[1].Kl", 0.092f);
 	Basic.SetUniform1f("uSpotlights[1].Kq", 0.032f);
-	Basic.SetUniform1f("uSpotlights[1].InnerCutOff", glm::cos(glm::radians(20.0f)));
-	Basic.SetUniform1f("uSpotlights[1].OuterCutOff", glm::cos(glm::radians(25.0f)));
+	Basic.SetUniform1f("uSpotlights[1].InnerCutOff", glm::cos(glm::radians(15.0f)));
+	Basic.SetUniform1f("uSpotlights[1].OuterCutOff", glm::cos(glm::radians(20.0f)));
 	// NOTE(Jovan): Diminishes the light's diffuse component by half, tinting it slightly red
 	Basic.SetUniform1i("uMaterial.Kd", 0);
 	// NOTE(Jovan): Makes the object really shiny
@@ -1736,10 +1736,37 @@ int main() {
 	glReadBuffer(GL_NONE);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	// Framebuffer for Shadow Map
+	unsigned int shadowMapFBO3;
+	glGenFramebuffers(1, &shadowMapFBO3);
+
+	// Texture for Shadow Map FBO
+	unsigned int shadowMapWidth3 = 2046 * 6, shadowMapHeight3 = 2046 * 6;
+	unsigned int shadowMap3;
+	glGenTextures(1, &shadowMap3);
+	glBindTexture(GL_TEXTURE_2D, shadowMap3);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapWidth3, shadowMapHeight3, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	// Prevents darkness outside the frustrum
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, clampColor);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO3);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap3, 0);
+	// Needed since we don't touch the color buffer
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	// Matrices needed for the light's perspective
 	glm::mat4 perspectiveProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f);
 	glm::mat4 lightView2 = glm::lookAt(glm::vec3(-10.0, 11.0, 10.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	glm::mat4 lightProjection2 = perspectiveProjection * lightView2;
+
+	glm::mat4 lightView3 = glm::lookAt(glm::vec3(-10.0, 11.0, 10.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 lightProjection3 = perspectiveProjection * lightView3;
 
 	glUseProgram(shadowMapProgram.GetId());
 	shadowMapProgram.SetUniform4m("lightProjection", lightProjection);
@@ -1772,6 +1799,19 @@ int main() {
 
 		glViewport(0, 0, shadowMapWidth2, shadowMapHeight2);
 		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO2);
+		glClear(GL_DEPTH_BUFFER_BIT);
+
+		// Draw scene for shadow map
+		glUseProgram(shadowMapProgram.GetId());
+		RenderScene(shadowMapProgram, true);
+		//------------------------------------------------------------------------------------
+		//------------------------------------------------------------------------------------
+		// Preparations for the Shadow Map2
+		glUseProgram(shadowMapProgram.GetId());
+		shadowMapProgram.SetUniform4m("lightProjection", lightProjection3);
+
+		glViewport(0, 0, shadowMapWidth3, shadowMapHeight3);
+		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO3);
 		glClear(GL_DEPTH_BUFFER_BIT);
 
 		// Draw scene for shadow map
@@ -1844,6 +1884,14 @@ int main() {
 		glBindTexture(GL_TEXTURE_2D, shadowMap2);
 		Basic.SetUniform1i("shadowMap2", 3);
 
+		// Send the light matrix to the shader
+		Basic.SetUniform4m("lightProjection3", lightProjection3);
+
+		// Bind the Shadow Map
+		glActiveTexture(GL_TEXTURE0 + 4);
+		glBindTexture(GL_TEXTURE_2D, shadowMap3);
+		Basic.SetUniform1i("shadowMap3", 4);
+
 		//Zika
 		auto distance = glm::length(params.position - glm::vec3(-9.5107, 8.26764, 8.97615));
 
@@ -1866,7 +1914,7 @@ int main() {
 		kdVatra = glm::vec3(230.0 / 255 / 0.2 * jacina, 92.0 / 255 / 0.2 * jacina, 0.0f);
 		Basic.SetUniform3f("uPointLights[3].Kd", kdVatra);
 
-		//Cube
+		/*//Cube
 		m = glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 1.0, -3.0));
 		Basic.SetModel(m);
 		cube->Render(shadowMap2, NULL);
@@ -1874,7 +1922,7 @@ int main() {
 		//Cube
 		m = glm::translate(glm::mat4(1.0f), glm::vec3(2.0, 1.0, -3.0));
 		Basic.SetModel(m);
-		cube->Render(shadowMap, NULL);
+		cube->Render(shadowMap, NULL);*/
 
 		//Nebo
 		m = glm::translate(glm::mat4(1.0f), glm::vec3(0.0, -1.0, 0.0));
@@ -1942,25 +1990,29 @@ int main() {
 		front.z = sin(glm::radians(ugao)) * cos(glm::radians(-25.0f));
 		Basic.SetUniform3f("uSpotlights[0].Direction", glm::normalize(front));
 
+		glm::mat4 lightView2 = glm::lookAt(1.0f * glm::vec3(-10.0f, 11.0f, 10.0f), glm::normalize(front), glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 lightProjection2 = perspectiveProjection * lightView2;
+
 		float ugao2 = ugao + 180.0f;
 		front.x = cos(glm::radians(ugao2)) * cos(glm::radians(-25.0f));
 		front.y = sin(glm::radians(-25.0f));
 		front.z = sin(glm::radians(ugao2)) * cos(glm::radians(-25.0f));
 		Basic.SetUniform3f("uSpotlights[1].Direction", glm::normalize(front));
 
-		glm::mat4 lightView2 = glm::lookAt(1.0f * glm::vec3(-10.0f, 11.0f, 10.0f), glm::normalize(front), glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 lightProjection2 = perspectiveProjection * lightView2;
+		glm::mat4 lightView3 = glm::lookAt(1.0f * glm::vec3(-10.0f, 11.0f, 10.0f), glm::normalize(front), glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 lightProjection3 = perspectiveProjection * lightView3;
+
 
 		glUseProgram(0);
 		glfwSwapBuffers(Window);
 
 		FrameEndTime = glfwGetTime();
-		dt = FrameEndTime - FrameStartTime;
+		/*dt = FrameEndTime - FrameStartTime;
 		if (dt < TargetFPS) {
 			int DeltaMS = (int)((TargetFrameTime - dt) * 1e3f);
 			std::this_thread::sleep_for(std::chrono::milliseconds(DeltaMS/4));
 			FrameEndTime = glfwGetTime();
-		}
+		}*/
 		dt = FrameEndTime - FrameStartTime;
 		params.dt = dt;
 	}
