@@ -61,6 +61,7 @@ struct Params {
 	bool clouds = true;
 	bool cull = true;
 	bool dan = true;
+	bool bog = false;
 
 	bool isCurosIn;
 	double xPosC = 0.0;
@@ -119,6 +120,11 @@ KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
 	if (key == GLFW_KEY_C && action == GLFW_PRESS)
 	{
 		params->clouds = !params->clouds;
+	}
+
+	if (key == GLFW_KEY_B && action == GLFW_PRESS)
+	{
+		params->bog = !params->bog;
 	}
 
 	if (key == GLFW_KEY_P && action == GLFW_PRESS)
@@ -1687,7 +1693,7 @@ int main() {
 	glGenFramebuffers(1, &shadowMapFBO);
 
 	// Texture for Shadow Map FBO
-	unsigned int shadowMapWidth = 2046*6, shadowMapHeight = 2046*6;
+	unsigned int shadowMapWidth = 2046*2, shadowMapHeight = 2046*2;
 	unsigned int shadowMap;
 	glGenTextures(1, &shadowMap);
 	glBindTexture(GL_TEXTURE_2D, shadowMap);
@@ -1717,7 +1723,7 @@ int main() {
 	glGenFramebuffers(1, &shadowMapFBO2);
 
 	// Texture for Shadow Map FBO
-	unsigned int shadowMapWidth2 = 2046 * 6, shadowMapHeight2 = 2046 * 6;
+	unsigned int shadowMapWidth2 = 2046, shadowMapHeight2 = 2046;
 	unsigned int shadowMap2;
 	glGenTextures(1, &shadowMap2);
 	glBindTexture(GL_TEXTURE_2D, shadowMap2);
@@ -1741,7 +1747,7 @@ int main() {
 	glGenFramebuffers(1, &shadowMapFBO3);
 
 	// Texture for Shadow Map FBO
-	unsigned int shadowMapWidth3 = 2046 * 6, shadowMapHeight3 = 2046 * 6;
+	unsigned int shadowMapWidth3 = 2046, shadowMapHeight3 = 2046;
 	unsigned int shadowMap3;
 	glGenTextures(1, &shadowMap3);
 	glBindTexture(GL_TEXTURE_2D, shadowMap3);
@@ -1774,6 +1780,7 @@ int main() {
 	glEnable(GL_BLEND);
 	params.dt = dt;
 	while (!glfwWindowShouldClose(Window)) {
+		FrameStartTime = glfwGetTime();
 
 		//glUseProgram(shadowMapProgram.GetId());
 		// Depth testing needed for Shadow Map
@@ -1829,7 +1836,6 @@ int main() {
 		glfwPollEvents();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		FrameStartTime = glfwGetTime();
 
 		//glfwSetCursorPos(Window, WindowWidth / 2, WindowHeight / 2);
 		HandleInput(&params);
@@ -1853,6 +1859,11 @@ int main() {
 		Basic.SetView(v);
 
 		Basic.SetUniform3f("uViewPos", params.position);
+
+		if (params.bog) {
+			lightView = glm::lookAt(1.0f * params.position, params.position + params.cameraFront, glm::vec3(0.0f, 1.0f, 0.0f));
+			lightProjection = orthgonalProjection * lightView;
+		}
 
 		//Skybox
 		glClearColor(135.0 / 255, 206.0 / 255, 235.0 / 255, 1.0);
