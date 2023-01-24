@@ -42,7 +42,7 @@ unsigned sunceDifuse;
 unsigned oblakDifuse;
 unsigned mesecDifuse;
 
-Model* Ivetic;
+Model* SumnjiviLik;
 Model* Firepit;
 Model* Lighthouse;
 Model* Nebo;
@@ -323,7 +323,7 @@ void RenderScene(Shader &Basic, bool isSpot = false) {
 	m = glm::rotate(m, glm::radians(135.0f), glm::vec3(0.0, 1.0, 0.0));
 	m = glm::scale(m, glm::vec3(0.12f));
 	Basic.SetModel(m);
-	Ivetic->Render();
+	SumnjiviLik->Render();
 
 	//Voda
 	m = glm::translate(glm::mat4(1.0f), glm::vec3(0, abs(sin(glfwGetTime() / 2)) * 0.08, 0));
@@ -604,8 +604,8 @@ int main() {
 		return -1;
 	}
 
-	Ivetic = new Model("bice/ivetic.obj");
-	if (!Ivetic->Load()) {
+	SumnjiviLik = new Model("bice/model.obj");
+	if (!SumnjiviLik->Load()) {
 		std::cerr << "Failed to load svetionik\n";
 		glfwTerminate();
 		return -1;
